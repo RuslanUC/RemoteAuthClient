@@ -10,6 +10,9 @@ from hashlib import sha256
 from asyncio import get_event_loop, sleep as asleep
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
+import logging
+
+log = logging.getLogger("RemoteAuthClient")
 
 class User:
     def __init__(self, _id, _username, _discriminator, _avatar):
@@ -38,10 +41,8 @@ class RemoteAuthClient:
     def initCrypto(self):
         self.privateKey = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         self.publicKey = self.privateKey.public_key()
-        publicKeyString = self.publicKey.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
-        publicKeyString = publicKeyString.decode("utf8").replace("-----BEGIN PUBLIC KEY-----\n", "")
-        publicKeyString = publicKeyString.replace("\n-----END PUBLIC KEY-----\n", "")
-        self.publicKeyString = "".join(publicKeyString.split("\n"))
+        publicKeyString = self.publicKey.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode("utf8")
+        self.publicKeyString = "".join(publicKeyString.split("\n")[1:-2])
 
     def event(self, t):
         def registerhandler(handler):
@@ -56,11 +57,11 @@ class RemoteAuthClient:
             elif t == "on_timeout":
                 self.on_timeout = handler
             else:
-                print(f"Unknown event type '{t}'")
+                log.info(f"Unknown event type '{t}'.")
             return handler
         return registerhandler
 
-    def ev(self, **args):
+    def ev(self, *args, **kwargs):
         pass
 
     async def run(self):
@@ -90,10 +91,13 @@ class RemoteAuthClient:
                     await self.send({"op": 'nonce_proof', "proof": nonceHash}, ws)
                 elif p["op"] == "pending_remote_init":
                     fingerprint = p["fingerprint"]
+                    log.debug(f"Received fingerprint: {fingerprint}.")
                     data = f"https://discordapp.com/ra/{fingerprint}"
                     await self.on_fingerprint(data=data)
                 elif p["op"] == "pending_finish":
-                    decryptedUser = self.decryptPayload(p["encrypted_user_payload"]).decode("utf8").split(':')
+                    decryptedUser = self.decryptPayload(p["encrypted_user_payload"]).decode("utf8")
+                    log.debug(f"Received userdata: {decryptedUser}.")
+                    decryptedUser = decryptedUser.split(':')
                     await self.on_userdata(user=User(decryptedUser[0], decryptedUser[3], decryptedUser[1], decryptedUser[2]))
                 elif p["op"] == "finish":
                     decryptedToken = self.decryptPayload(p["encrypted_token"]).decode("utf8")
@@ -103,14 +107,15 @@ class RemoteAuthClient:
                     break
         self._heartbeatTask.cancel()
         if err:
-            print("RemoteAuthClient disconnected with handshare error")
+            log.error("RemoteAuthClient disconnected with error.")
             self.initCrypto()
-            print("Reconnecting...")
+            log.info("Reconnecting...")
             await self.run()
 
     async def sendHeartbeat(self, interval, _ws):
         while True:
             await asleep(interval/1000)
+            log.debug(f"Sending heartbeat.")
             await self.send({"op": 'heartbeat'}, _ws)
 
     async def send(self, json, _ws):
