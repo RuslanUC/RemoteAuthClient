@@ -28,7 +28,7 @@ async def on_userdata(user):
     print(f"Avatar URL: {user.getAvatarURL()}")
 
 @c.event("on_token")
-async def on_fingerprint(token):
+async def on_token(token):
     print(f"Token: {token}")
 
 @c.event("on_cancel")
