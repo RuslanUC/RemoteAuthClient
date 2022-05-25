@@ -2,9 +2,8 @@ from setuptools import setup, find_packages
 from os.path import join, dirname
 
 requirements = [
-    "cryptography==3.4.7",
-    "websockets==9.1",
-    "asyncio==3.4.3"
+    "cryptography>=3.4.7",
+    "websockets>=10.1"
 ]
 
 setup(
