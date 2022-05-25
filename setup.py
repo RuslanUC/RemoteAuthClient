@@ -8,7 +8,7 @@ requirements = [
 
 setup(
     name='remoteauthclient',
-    version='1.1',
+    version='1.2',
     packages=["remoteauthclient"],
     long_description=open(join(dirname(__file__), 'README.md')).read(),
     long_description_content_type="text/markdown",
