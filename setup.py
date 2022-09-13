@@ -3,12 +3,13 @@ from os.path import join, dirname
 
 requirements = [
     "cryptography>=3.4.7",
-    "websockets>=10.1"
+    "websockets>=10.1",
+    "aiohttp>=3.8.1"
 ]
 
 setup(
     name='remoteauthclient',
-    version='1.2',
+    version='1.3',
     packages=["remoteauthclient"],
     long_description=open(join(dirname(__file__), 'README.md')).read(),
     long_description_content_type="text/markdown",
