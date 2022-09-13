@@ -10,6 +10,7 @@ from hashlib import sha256
 from asyncio import get_event_loop, sleep as asleep
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
+from aiohttp import ClientSession
 import logging
 
 log = logging.getLogger("RemoteAuthClient")
@@ -66,7 +67,7 @@ class RemoteAuthClient:
 
     async def run(self):
         err = False
-        async with connect("wss://remote-auth-gateway.discord.gg/?v=1", origin=Origin("https://discord.com")) as ws:
+        async with connect("wss://remote-auth-gateway.discord.gg/?v=2", origin=Origin("https://discord.com")) as ws:
             while True:
                 try:
                     data = await ws.recv()
@@ -94,13 +95,17 @@ class RemoteAuthClient:
                     log.debug(f"Received fingerprint: {fingerprint}.")
                     data = f"https://discordapp.com/ra/{fingerprint}"
                     await self.on_fingerprint(data=data)
-                elif p["op"] == "pending_finish":
+                elif p["op"] == "pending_ticket":
                     decryptedUser = self.decryptPayload(p["encrypted_user_payload"]).decode("utf8")
                     log.debug(f"Received userdata: {decryptedUser}.")
                     decryptedUser = decryptedUser.split(':')
                     await self.on_userdata(user=User(decryptedUser[0], decryptedUser[3], decryptedUser[1], decryptedUser[2]))
-                elif p["op"] == "finish":
-                    decryptedToken = self.decryptPayload(p["encrypted_token"]).decode("utf8")
+                elif p["op"] == "pending_login":
+                    async with ClientSession() as sess:
+                        async with sess.post("https://discord.com/api/v9/users/@me/remote-auth/login", json={"ticket": p["ticket"]}) as resp:
+                            assert resp.status == 200
+                            encryptedToken = (await resp.json())["encrypted_token"]
+                    decryptedToken = self.decryptPayload(encryptedToken).decode("utf8")
                     await self.on_token(token=decryptedToken)
                 elif p["op"] == 'cancel':
                     await self.on_cancel()
