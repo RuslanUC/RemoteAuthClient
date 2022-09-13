@@ -107,10 +107,12 @@ class RemoteAuthClient:
                             encryptedToken = (await resp.json())["encrypted_token"]
                     decryptedToken = self.decryptPayload(encryptedToken).decode("utf8")
                     await self.on_token(token=decryptedToken)
+                    break
                 elif p["op"] == 'cancel':
                     await self.on_cancel()
                     break
-        self._heartbeatTask.cancel()
+        if self._heartbeatTask:
+            self._heartbeatTask.cancel()
         if err:
             log.error("RemoteAuthClient disconnected with error.")
             self.initCrypto()
