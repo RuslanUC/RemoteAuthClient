@@ -38,9 +38,16 @@ async def on_cancel():
 @c.event("on_timeout")
 async def on_timeout():
     print(f"Timeout")
-    
+
+@c.event("on_captcha")
+async def on_captcha(captcha_data):
+    # captcha_data contains captcha_sitekey, captcha_service (hcaptcha), captcha_rqdata and captcha_rqtoken
+    print(f"Captcha!")
+    captcha_key = ... # Solve captcha and get captcha_key
+    return captcha_key
+
 @c.event("on_error")
-async def on_timeout(exc, client):
+async def on_error(exc, client):
     print(f"Error: {exc.__class__.__name__}")
     if client.retries == 1:
         await client.run_task()

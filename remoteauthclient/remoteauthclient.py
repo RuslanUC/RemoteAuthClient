@@ -119,9 +119,9 @@ class RemoteAuthClient:
             j = await resp.json()
             log.debug(f"Response code: {resp.status}")
             log.debug(f"Response body: {j}")
-            # I'm not sure about captcha response
-            if "encrypted_token" not in j and captcha_key is None:
-                captcha_key = await self._event("captcha")
+            if "encrypted_token" not in j and captcha_key is None and j.get("captcha_key") == "captcha-required":
+                del j["captcha_key"]
+                captcha_key = await self._event("captcha", captcha_data=j)
                 if not captcha_key:
                     return
                 return await self._getToken(ticket, captcha_key)
