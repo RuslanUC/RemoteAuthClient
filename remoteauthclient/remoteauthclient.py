@@ -171,12 +171,12 @@ class RemoteAuthClient:
                     await self._event("token", token=decryptedToken)
                 break
             elif p["op"] == 'cancel':
-                await self._event("cancel")
+                get_event_loop().create_task(self._event("cancel"))
                 break
         await self._cleanup(cancel_main_task=False)
         if err:
             log.error("RemoteAuthClient disconnected with error.")
-            await self._event("error", error=err)
+            get_event_loop().create_task(self._event("error", error=err))
 
     async def run(self) -> None:
         await self.run_task()
