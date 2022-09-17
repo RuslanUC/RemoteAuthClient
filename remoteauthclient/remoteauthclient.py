@@ -10,7 +10,7 @@ from hashlib import sha256
 from asyncio import get_event_loop, sleep as asleep, CancelledError
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
-from aiohttp import ClientSession
+from aiohttp import ClientSession, BasicAuth
 import logging
 
 log = logging.getLogger("RemoteAuthClient")
@@ -26,10 +26,10 @@ class User:
         return f"{self.username}#{self.discriminator}"
 
     def getAvatarURL(self) -> str:
-        return f"https://cdn.discordapp.com/avatars/{self.id}/{self.avatar}.png"
+        return f"https://cdn.discord.com/avatars/{self.id}/{self.avatar}.png"
 
 class RemoteAuthClient:
-    def __init__(self):
+    def __init__(self, proxy=None, proxy_auth=None):
         self._task = None
         self._heartbeatTask = None
         self._ws = None
@@ -47,6 +47,9 @@ class RemoteAuthClient:
         self.on_captcha = self.ev
 
         self._retries = 0
+
+        self.proxy = proxy
+        self.proxy_auth = proxy_auth
 
     @property
     def retries(self) -> int:
@@ -111,11 +114,16 @@ class RemoteAuthClient:
         self._publicKeyString = None
 
     async def _getToken(self, ticket: str, captcha_key: Optional[str]=None) -> Optional[str]:
+        _proxy = {}
+        if self.proxy:
+            _proxy["proxy"] = f"http://{self.proxy}"
+            if self.proxy_auth:
+                _proxy["proxy_auth"] = BasicAuth(**self.proxy_auth)
         async with ClientSession() as sess:
             data = {"ticket": ticket}
             if captcha_key:
                 data["captcha_key"] = captcha_key
-            resp = await sess.post("https://discord.com/api/v9/users/@me/remote-auth/login", json=data)
+            resp = await sess.post("https://discord.com/api/v9/users/@me/remote-auth/login", json=data, **_proxy)
             j = await resp.json()
             log.debug(f"Response code: {resp.status}")
             log.debug(f"Response body: {j}")

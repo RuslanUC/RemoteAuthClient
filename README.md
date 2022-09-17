@@ -54,3 +54,14 @@ async def on_error(exc, client):
 
 run(c.run())
 ```
+
+# Proxy example
+```py
+from remoteauthclient import RemoteAuthClient
+
+c = RemoteAuthClient(proxy="127.0.0.1:8080")
+# Or with auth
+c = RemoteAuthClient(proxy="127.0.0.1:8080", proxy_auth={"login": "user", "password": "password"})
+
+...
+```
