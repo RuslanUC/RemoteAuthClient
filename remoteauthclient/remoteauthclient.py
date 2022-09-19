@@ -29,7 +29,7 @@ class User:
         return f"https://cdn.discord.com/avatars/{self.id}/{self.avatar}.png"
 
 class RemoteAuthClient:
-    def __init__(self, proxy=None, proxy_auth=None):
+    def __init__(self, proxy=None, proxy_auth=None, user_agent=None):
         self._task = None
         self._heartbeatTask = None
         self._ws = None
@@ -51,6 +51,7 @@ class RemoteAuthClient:
 
         self.proxy = proxy
         self.proxy_auth = proxy_auth
+        self.user_agent = user_agent or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36"
 
     @property
     def retries(self) -> int:
@@ -120,7 +121,7 @@ class RemoteAuthClient:
             _proxy["proxy"] = f"http://{self.proxy}"
             if self.proxy_auth:
                 _proxy["proxy_auth"] = BasicAuth(**self.proxy_auth)
-        async with ClientSession() as sess:
+        async with ClientSession(headers={"User-Agent": self.user_agent}) as sess:
             data = {"ticket": ticket}
             if captcha_key:
                 data["captcha_key"] = captcha_key
