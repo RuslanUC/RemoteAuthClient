@@ -9,12 +9,13 @@ requirements = [
 
 setup(
     name='remoteauthclient',
-    version='1.4.0b1',
+    version='1.4.0b2',
     packages=["remoteauthclient"],
     long_description=open(join(dirname(__file__), 'README.md')).read(),
     long_description_content_type="text/markdown",
     description='Client for Discord authorization via qr code',
     url='https://github.com/RuslanUC/RemoteAuthClient',
+    repository='https://github.com/RuslanUC/RemoteAuthClient',
     author='RuslanUC',
     install_requires=requirements,
     python_requires='>=3.7',
