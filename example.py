@@ -33,7 +33,7 @@ async def on_timeout():
 async def on_captcha(captcha_data):
     # captcha_data contains captcha_sitekey, captcha_service (hcaptcha), captcha_rqdata and captcha_rqtoken
     print(f"Captcha!")
-    captcha_key = ... # Solve captcha and get captcha_key
+    captcha_key = ... # Solve captcha and get captcha_key, you must provide captcha_sitekey and captcha_rqdata to solving service
     return captcha_key
 
 @c.event("on_error")
