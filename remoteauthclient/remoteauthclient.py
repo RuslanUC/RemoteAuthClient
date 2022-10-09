@@ -126,14 +126,17 @@ class RemoteAuthClient:
             if captcha_key:
                 data["captcha_key"] = captcha_key
                 data["captcha_rqtoken"] = self._rqtoken
+            log.debug(f"Trying to get a token with request body: {data}")
             resp = await sess.post("https://discord.com/api/v9/users/@me/remote-auth/login", json=data, **_proxy)
             j = await resp.json()
             log.debug(f"Response code: {resp.status}")
             log.debug(f"Response body: {j}")
-            if "encrypted_token" not in j and captcha_key is None and j.get("captcha_key") == "captcha-required":
+            if "encrypted_token" not in j and captcha_key is None and "captcha_key" in j:
+                log.debug(f"Detected captcha response. Calling on_captcha method with {j}")
                 del j["captcha_key"]
                 self._rqtoken = j["captcha_rqtoken"]
                 captcha_key = await self._event("captcha", captcha_data=j)
+                log.debug(f"on_captcha result: {captcha_key}")
                 if not captcha_key:
                     return
                 return await self._getToken(ticket, captcha_key)
