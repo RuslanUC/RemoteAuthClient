@@ -1,3 +1,4 @@
+from re import findall
 from typing import Any, Optional
 from websockets import connect
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
@@ -5,12 +6,13 @@ from websockets.typing import Origin
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from json import loads, dumps
-from base64 import b64decode, urlsafe_b64encode
+from base64 import b64decode, urlsafe_b64encode, b64encode
 from hashlib import sha256
 from asyncio import get_event_loop, sleep as asleep, CancelledError
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from aiohttp import ClientSession, BasicAuth
+from httpagentparser import detect
 import logging
 
 log = logging.getLogger("RemoteAuthClient")
@@ -115,13 +117,50 @@ class RemoteAuthClient:
         self._publicKey = None
         self._publicKeyString = None
 
+    async def _getHeaders(self) -> dict:
+        headers = {
+            "User-Agent": self.user_agent,
+            "Accept": '*/*',
+            "Content-Type": "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "X-Debug-Options": "bugReporterEnabled",
+        }
+        ua = detect(self.user_agent)
+        sprop = {
+            "os": ua.get("os", {}).get("name", "Windows"),
+            "browser": ua.get("browser", {}).get("name", "Chrome"),
+            "device": "", "system_locale": "en-US", "browser_user_agent": self.user_agent,
+            "browser_version": ua.get("browser", {}).get("version", "103.0.0.0"),
+            "os_version": ua.get("os", {}).get("version", "100"),
+            "referrer": "", "referring_domain": "", "referrer_current": "", "referring_domain_current": "",
+            "release_channel": "stable",  "client_build_number": 154750, "client_event_source": None
+        }
+        async with ClientSession() as sess:
+            r = await sess.get("https://discord.com/login")
+            build = findall(r'\{"buildId"\: {0,}"([a-f0-9]{40})"', await r.text())
+            if build:
+                build = build[0]
+                try:
+                    r = await sess.get(f"https://api.discord.sale/builds/{build}")
+                    r = await r.json()
+                    sprop["client_build_number"] = r.get("number", 154750)
+                except:
+                    pass
+        headers["X-Super-Properties"] = b64encode(dumps(sprop).encode("utf8")).decode("utf8")
+        return headers
+
     async def _getToken(self, ticket: str, captcha_key: Optional[str]=None) -> Optional[str]:
         _proxy = {}
         if self.proxy:
             _proxy["proxy"] = f"http://{self.proxy}"
             if self.proxy_auth:
                 _proxy["proxy_auth"] = BasicAuth(**self.proxy_auth)
-        async with ClientSession(headers={"User-Agent": self.user_agent}) as sess:
+        async with ClientSession(headers=await self._getHeaders()) as sess:
             data = {"ticket": ticket}
             if captcha_key:
                 data["captcha_key"] = captcha_key
@@ -190,7 +229,7 @@ class RemoteAuthClient:
                 break
         await self._cleanup(cancel_main_task=False)
         if err:
-            log.error("RemoteAuthClient disconnected with error.")
+            log.error("RemoteAuthClient disconnected with error.", err)
             get_event_loop().create_task(self._event("error", error=err))
 
     async def run(self) -> None:
