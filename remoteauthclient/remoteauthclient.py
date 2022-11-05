@@ -31,7 +31,9 @@ class User:
         return f"https://cdn.discord.com/avatars/{self.id}/{self.avatar}.png"
 
 class RemoteAuthClient:
-    def __init__(self, proxy=None, proxy_auth=None, user_agent=None):
+    def __init__(self, proxy=None, proxy_auth=None, proxy_type="http", user_agent=None, captcha_attempts=1):
+        if proxy_type not in ["http", "socks5"]:
+            raise ValueError('The proxy type is not supported, choose "http" or "socks5".')
         self._task = None
         self._heartbeatTask = None
         self._ws = None
@@ -51,7 +53,10 @@ class RemoteAuthClient:
         self._retries = 0
         self._rqtoken = None
 
+        self.captcha_attempts = captcha_attempts
+        self.captcha_attempts_use = 0
         self.proxy = proxy
+        self.proxy_type = proxy_type
         self.proxy_auth = proxy_auth
         self.user_agent = user_agent or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36"
 
@@ -157,7 +162,7 @@ class RemoteAuthClient:
     async def _getToken(self, ticket: str, captcha_key: Optional[str]=None) -> Optional[str]:
         _proxy = {}
         if self.proxy:
-            _proxy["proxy"] = f"http://{self.proxy}"
+            _proxy["proxy"] = f"{self.proxy_type}://{self.proxy}"
             if self.proxy_auth:
                 _proxy["proxy_auth"] = BasicAuth(**self.proxy_auth)
         async with ClientSession(headers=await self._getHeaders()) as sess:
@@ -170,9 +175,10 @@ class RemoteAuthClient:
             j = await resp.json()
             log.debug(f"Response code: {resp.status}")
             log.debug(f"Response body: {j}")
-            if "encrypted_token" not in j and captcha_key is None and "captcha_key" in j:
+            if "encrypted_token" not in j and "captcha_key" in j and self.captcha_attempts_use < self.captcha_attempts:
                 log.debug(f"Detected captcha response. Calling on_captcha method with {j}")
                 del j["captcha_key"]
+                self.captcha_attempts_use += 1
                 self._rqtoken = j["captcha_rqtoken"]
                 captcha_key = await self._event("captcha", captcha_data=j)
                 log.debug(f"on_captcha result: {captcha_key}")
