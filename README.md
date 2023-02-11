@@ -1,5 +1,7 @@
 # RemoteAuthClient
 
+## Due to lack of time, I unfortunately cannot maintain RemoteAuthClient (including the captcha solving). For now, I will not archive the repository, so if a fix to the captcha problem appears, you can create a pull request.
+
 ### Installing
 Python 3.7 or higher is required
 ```sh
